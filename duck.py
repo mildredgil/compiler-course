@@ -9,11 +9,10 @@ from sly import Lexer, Parser
 
 class CalcLexer(Lexer):
         # Set of token names.   This is always required
-    tokens = { INTNUMBER, FLOATNUMBER, ID, 
+    tokens = { STRING, INTNUMBER, FLOATNUMBER, ID, 
                VAR, IF, ELSE, PRINT, INT, FLOAT, PROGRAM,
                PLUS, MINUS, TIMES, DIVIDE, ASSIGN,
-               EQ, LT, LE, GT, GE, NE }
-
+               EQ, LT, GT, NE }
 
     literals = { '(', ')', '{', '}', ';', ':', ',' }
 
@@ -25,12 +24,10 @@ class CalcLexer(Lexer):
     MINUS   = r'-'
     TIMES   = r'\*'
     DIVIDE  = r'/'
-    ASSIGN  = r'='
     EQ      = r'=='
+    ASSIGN  = r'='
     NE      = r'<>'
-    LE      = r'<='
     LT      = r'<'
-    GE      = r'>='
     GT      = r'>'
 
     
@@ -54,6 +51,11 @@ class CalcLexer(Lexer):
     ID['float'] = FLOAT
     ID['program'] = PROGRAM
 
+    @_(r'\"(.*?)\"')
+    def STRING(self, t):
+        t.value = str(t.value[1: len(t.value) - 1])
+        return t
+
     ignore_comment = r'\#.*'
 
     # Line number tracking
@@ -71,20 +73,84 @@ class CalcParser(Parser):
     
     def __init__(self):
         self.ids = { }
-    '''
+        self.programs = { }
+    
+    @_('PROGRAM ID ":" program2')
+    def programa(self, p):
+        self.programs[p.ID] = ""
+        return p.program2
+    
+    @_('vars bloque')
+    def program2(self, p):
+        return p.bloque
+    
+    @_('bloque')
+    def program2(self, p):
+        return p.bloque
+
     @_('VAR var1')
     def vars(self, p):
-        return p.var1
+        pass
+
+    @_('ID var2 ":" tipo ";" var1')
+    def var1(self, p):
+        self.ids[p.ID] = 0
+
+    @_('empty')
+    def var1(self, p):
+        pass
+
+    @_('"," ID var2')
+    def var2(self, p):
+        self.ids[p.ID] = 0
+
+    @_('empty')
+    def var2(self, p):
+        pass
+
+    @_('"{" estatuto bloque1')
+    def bloque(self, p):
+        return p.bloque1
+
+    @_('estatuto bloque1')
+    def bloque1(self, p):
+        return p.bloque1
+
+    @_('"}"')
+    def bloque1(self, p):
+        pass
+
+    @_('asig')
+    def estatuto(self, p):
+        return p.asig
+
+    @_('condition')
+    def estatuto(self, p):
+        return p.condition
+
+    @_('escritura')
+    def estatuto(self, p):
+        return p.escritura
+
+    @_('IF "(" expres ")" bloque condition2 ";"')
+    def condition(self, p):
+        if p.expres:
+            return p.bloque
+        else:
+            return p.condition2
+
+    @_('ELSE bloque')
+    def condition2(self, p):
+        return p.bloque
+
+    @_('empty')
+    def condition2(self, p):
+        pass
+
+    @_('ID ASSIGN expres ";"')
+    def asig(self, p):
+        self.ids[p.ID] = p.expres
     
-    @_('ID "," var1')
-    def var1(self, p):
-        self.ids[p.ID] = 0
-        return p.var1
-
-    @_('":" tipo ";"')
-    def var1(self, p):
-        self.ids[p.ID] = 0
-
     @_('INT')
     def tipo(self, p):
         return 'int'
@@ -92,24 +158,29 @@ class CalcParser(Parser):
     @_('FLOAT')
     def tipo(self, p):
         return 'float'
-
-    @_('ID ASSIGN expres ";"')
-    def asig(self, p):
-        self.ids[p.ID] = p.expres
-    '''    
+        
     @_('PRINT "(" escr1')
     def escritura(self, p):
         for elem in p.escr1:
-            print(elem)
-
-    @_('expres ")" ";"')
+            elem
+            #print(elem)
+            
+    @_('escr2 ")" ";"')
     def escr1(self, p):
-        return [p.expres]
+        return [p.escr2]
 
-    @_('expres "," escr1')
+    @_('escr2 "," escr1')
     def escr1(self, p):
-        return [p.expres] + p.escr1
-        
+        return [p.escr2] + p.escr1
+    
+    @_('expres')
+    def escr2(self, p):
+        return p.expres
+
+    @_('STRING')
+    def escr2(self, p):
+        return p.STRING
+    
     @_('exp NE exp')
     def expres(self, p):
         return p[0] != p[2]
@@ -178,6 +249,10 @@ class CalcParser(Parser):
     def var(self, p):
         return int(p.INTNUMBER)
 
+    @_('')
+    def empty(self, p):
+        pass
+
     @_('ID')
     def var(self, p):
         try:
@@ -189,10 +264,11 @@ class CalcParser(Parser):
 if __name__ == '__main__':
     lexer = CalcLexer()
     parser = CalcParser()
-    while True:
-        try:
-            text = input('calc > ')
-        except EOFError:
-            break
-        if text:
-            parser.parse(lexer.tokenize(text))
+    filename = input("write the file name:")
+    f=open(filename, "r")
+    data = f.read()
+
+    for tok in lexer.tokenize(data):
+        print(tok)
+    
+    parser.parse(lexer.tokenize(data))

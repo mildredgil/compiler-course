@@ -1,0 +1,21 @@
+program miprogr : 
+var dos, cuatro, uno: int;
+tres: float;
+{
+    print(1 + 2, "hola123 asd", "bye", "#$%&/(", "");
+    uno = 5;
+    print(uno);
+    if( uno <> 6) {
+        print(-6);
+    };
+
+    dos = 2;
+    if( dos == 2) {
+        dos = 3;
+    } else {
+        dos = 4;
+    };
+
+    cuatro = dos;
+    print(cuatro);
+}
